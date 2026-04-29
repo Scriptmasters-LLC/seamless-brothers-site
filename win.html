@@ -103,6 +103,16 @@ footer{padding:32px 0;border-top:1px solid var(--white-08);text-align:center;pos
 .fcopy{font-size:12px;color:var(--white-40);letter-spacing:.5px}
 .fcopy span{color:var(--gold)}
 
+/* GOOGLE PLACES AUTOCOMPLETE */
+.pac-container{background:var(--black-card);border:1px solid var(--white-08);border-radius:var(--rs);box-shadow:0 16px 48px rgba(0,0,0,.5);font-family:var(--font);margin-top:6px;overflow:hidden;z-index:9999}
+.pac-container:after{display:none}
+.pac-item{padding:12px 16px;color:var(--white-70);border-top:1px solid var(--white-08);cursor:pointer;font-size:13px;line-height:1.4}
+.pac-item:first-child{border-top:none}
+.pac-item:hover,.pac-item-selected{background:var(--black-surface);color:var(--white)}
+.pac-item-query{color:var(--white);font-size:14px;padding-right:4px}
+.pac-matched{color:var(--gold);font-weight:600}
+.pac-icon{filter:invert(1) opacity(.35);margin-right:10px}
+
 /* RESPONSIVE */
 @media(max-width:900px){
   .main{padding:100px 0 60px}
@@ -256,25 +266,68 @@ footer{padding:32px 0;border-top:1px solid var(--white-08);text-align:center;pos
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
 
-// GHL form integration goes here.
-// Replace this with the GHL form embed/webhook URL when ready.
-const GHL_WEBHOOK_URL = 'REPLACE_WITH_GHL_WEBHOOK_URL';
+const GHL_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/UIma7E0RUEQ7sclrkJu4/webhook-trigger/318cf61a-a4de-46cc-9b65-1adfb92f88e3';
+const FALLBACK_PHONE = '(803) 480-6654';
 
 const form = document.getElementById('giveawayForm');
 const submitBtn = document.getElementById('submitBtn');
 const formView = document.getElementById('formView');
 const successView = document.getElementById('successView');
+const addrInput = document.getElementById('address');
+const cityInput = document.getElementById('city');
+const zipInput = document.getElementById('zip');
+let parsedAddress = null;
+
+const normalizePhone = raw => {
+  const d = (raw || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.length === 10) return '+1' + d;
+  if (d.length === 11 && d.startsWith('1')) return '+' + d;
+  return '+' + d;
+};
+
+window.initGiveawayAutocomplete = function(){
+  if (!window.google || !google.maps || !google.maps.places || !addrInput) return;
+  const ac = new google.maps.places.Autocomplete(addrInput, {
+    componentRestrictions: { country: 'us' },
+    fields: ['address_components', 'formatted_address'],
+    types: ['address']
+  });
+  ac.setBounds(new google.maps.LatLngBounds({lat:32.0,lng:-83.4},{lat:35.2,lng:-78.5}));
+  ac.addListener('place_changed', () => {
+    const p = ac.getPlace();
+    if (!p || !p.address_components) { parsedAddress = null; return; }
+    const g = (t, s) => { const c = p.address_components.find(x => x.types.includes(t)); return c ? (s ? c.short_name : c.long_name) : ''; };
+    const street = (g('street_number') + ' ' + g('route')).trim();
+    const city = g('locality') || g('sublocality') || g('administrative_area_level_3');
+    const state = g('administrative_area_level_1', true);
+    const postalCode = g('postal_code');
+    const country = g('country', true);
+    parsedAddress = { address1: street, city, state, postalCode, country, formatted: p.formatted_address || '' };
+    if (street) addrInput.value = street;
+    if (city && cityInput) cityInput.value = city;
+    if (postalCode && zipInput) zipInput.value = postalCode;
+  });
+  addrInput.addEventListener('input', () => {
+    if (parsedAddress && addrInput.value !== parsedAddress.address1) parsedAddress = null;
+  });
+  addrInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const d = document.querySelector('.pac-container');
+      if (d && getComputedStyle(d).display !== 'none' && d.children.length > 0) e.preventDefault();
+    }
+  });
+};
 
 form.addEventListener('submit', async function(e){
   e.preventDefault();
 
-  // Validation
   const checks = form.querySelectorAll('input[name="gutterSituation"]:checked');
-  if(checks.length === 0){
+  if (checks.length === 0) {
     alert('Please select at least one option for your gutter situation.');
     return;
   }
-  if(!form.consent.checked){
+  if (!form.consent.checked) {
     alert('Please check the consent box to enter.');
     return;
   }
@@ -282,45 +335,54 @@ form.addEventListener('submit', async function(e){
   submitBtn.disabled = true;
   submitBtn.textContent = 'Submitting...';
 
+  const address1 = form.address.value.trim();
+  const city = form.city.value.trim();
+  const postalCode = form.zip.value.trim();
+  const fullAddress = parsedAddress ? parsedAddress.formatted : [address1, city, postalCode].filter(Boolean).join(', ');
+
   const data = {
     firstName: form.firstName.value.trim(),
     lastName: form.lastName.value.trim(),
-    phone: form.phone.value.trim(),
+    name: (form.firstName.value.trim() + ' ' + form.lastName.value.trim()).trim(),
+    phone: normalizePhone(form.phone.value),
     email: form.email.value.trim(),
-    address: form.address.value.trim(),
-    city: form.city.value.trim(),
-    zip: form.zip.value.trim(),
+    address1,
+    city,
+    state: parsedAddress ? parsedAddress.state : '',
+    postalCode,
+    country: parsedAddress ? parsedAddress.country : '',
+    fullAddress,
+    addressVerified: !!parsedAddress,
     ownsHome: form.ownsHome.value,
     gutterSituation: Array.from(checks).map(c => c.value),
     consent: true,
-    source: 'festival-giveaway-2025',
-    submittedAt: new Date().toISOString()
+    source: 'festival-giveaway-2026',
+    tags: ['giveaway-entry', 'website-lead'],
+    submittedAt: new Date().toISOString(),
+    pageUrl: window.location.href
   };
 
   try {
-    if(GHL_WEBHOOK_URL && GHL_WEBHOOK_URL !== 'REPLACE_WITH_GHL_WEBHOOK_URL'){
-      const res = await fetch(GHL_WEBHOOK_URL, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(data)
-      });
-      if(!res.ok) throw new Error('Submission failed');
-    } else {
-      // Dev mode - log only
-      console.log('Form data (no webhook configured):', data);
-      await new Promise(r => setTimeout(r, 600));
-    }
+    const res = await fetch(GHL_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
 
     formView.style.display = 'none';
     successView.classList.add('show');
-    window.scrollTo({top: 0, behavior: 'smooth'});
-  } catch(err){
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch(err) {
     submitBtn.disabled = false;
     submitBtn.textContent = 'Enter to Win';
-    alert('Something went wrong. Please try again or text us at [phone].');
+    alert('Something went wrong. Please try again or text us at ' + FALLBACK_PHONE + '.');
   }
 });
 </script>
+
+<!-- Google Places Autocomplete: same key as index.html, restricted by HTTP referer in GCP console. -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBL_R8fYRFp6z2G8HA5uKzFRbNJWvw5x3I&libraries=places&callback=initGiveawayAutocomplete&loading=async"></script>
 
 </body>
 </html>
