@@ -354,7 +354,7 @@ form.addEventListener('submit', async function(e){
     fullAddress,
     addressVerified: !!parsedAddress,
     ownsHome: form.ownsHome.value,
-    gutterSituation: Array.from(checks).map(c => c.value),
+    gutterSituation: Array.from(checks).map(c => c.closest('label').querySelector('span').textContent.trim()).join(', '),
     consent: true,
     source: 'festival-giveaway-2026',
     tags: ['giveaway-entry', 'website-lead'],
