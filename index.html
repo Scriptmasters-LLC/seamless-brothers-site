@@ -196,7 +196,7 @@ window.addEventListener('scroll',()=>{document.querySelectorAll('.wc').forEach((
 document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener('click',function(e){const t=document.querySelector(this.getAttribute('href'));if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'})}})});
 
 (function(){
-  const GHL_WEBHOOK='https://services.leadconnectorhq.com/hooks/UIma7E0RUEQ7sclrkJu4/webhook-trigger/e553beab-23ae-4dda-8f3c-09db4364067b';
+  const ZAPIER_WEBHOOK='https://hooks.zapier.com/hooks/catch/11182629/uvqiupm/';
   const FALLBACK_EMAIL='tylerlist@thegutterbrothers.co';
   const form=document.getElementById('quoteForm');
   if(!form)return;
@@ -283,7 +283,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener('click'
     const originalHTML=btn.innerHTML;
     btn.innerHTML='Sending…';
     try{
-      const res=await fetch(GHL_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const res=await fetch(ZAPIER_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(!res.ok)throw new Error('HTTP '+res.status);
       form.reset();
       setStatus('Thanks — Tyler will reach out within the hour. Check your email and phone for a confirmation.','ok');

@@ -266,7 +266,7 @@ footer{padding:32px 0;border-top:1px solid var(--white-08);text-align:center;pos
 <script>
 document.getElementById('year').textContent = new Date().getFullYear();
 
-const GHL_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/UIma7E0RUEQ7sclrkJu4/webhook-trigger/318cf61a-a4de-46cc-9b65-1adfb92f88e3';
+const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/11182629/uvqiupm/';
 const FALLBACK_PHONE = '(803) 480-6654';
 
 const form = document.getElementById('giveawayForm');
@@ -363,7 +363,7 @@ form.addEventListener('submit', async function(e){
   };
 
   try {
-    const res = await fetch(GHL_WEBHOOK_URL, {
+    const res = await fetch(ZAPIER_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
